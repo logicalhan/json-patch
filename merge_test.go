@@ -1,8 +1,14 @@
 package jsonpatch
 
 import (
+	"encoding/json"
+	"fmt"
+	"io/ioutil"
+	"os"
+	"reflect"
 	"strings"
 	"testing"
+	"time"
 )
 
 func mergePatch(doc, patch string) string {
@@ -24,6 +30,47 @@ func TestMergePatchReplaceKey(t *testing.T) {
 	if !compareJSON(pat, res) {
 		t.Fatalf("Key was not replaced")
 	}
+}
+
+func TestBlah(t *testing.T) {
+	jsonFile, err := os.Open("blah.json")
+	if err != nil {
+		fmt.Println(err)
+	}
+	jsonFile2, err := os.Open("blah2.json")
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	// defer the closing of our jsonFile so that we can parse it later on
+	defer jsonFile.Close()
+	defer jsonFile2.Close()
+	b1, _ := ioutil.ReadAll(jsonFile)
+	b2, _ := ioutil.ReadAll(jsonFile2)
+	var f1 interface{}
+	var f2 interface{}
+	err = json.Unmarshal(b1, &f1)
+	if err != nil {
+		fmt.Println(err)
+	}
+	err = json.Unmarshal(b2, &f2)
+	if err != nil {
+		fmt.Println(err)
+	}
+	fmt.Printf("%v\n", f2)
+	fmt.Printf("%v\n", f1)
+
+	fmt.Printf("TIME NOW %v\n", time.Now())
+	fmt.Printf("type of :%v\n", reflect.TypeOf(f1))
+	fmt.Printf("type of :%v\n", reflect.TypeOf(f2))
+	fmt.Println("Successfully Opened users.json")
+	fmt.Printf("DEEP EQUALS %v\n", reflect.DeepEqual(f1, f2))
+	i := 1
+
+	if matchesValueInvocationCount(f1, f2, &i) {
+		fmt.Printf("MATCH NOW %v\n", time.Now())
+	}
+	t.Errorf("Doesn't %v", time.Now())
 }
 
 func TestMergePatchIgnoresOtherValues(t *testing.T) {

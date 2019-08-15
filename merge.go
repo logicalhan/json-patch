@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"strings"
 )
 
 func merge(cur, patch *lazyNode, mergeMerge bool) *lazyNode {
@@ -321,8 +322,93 @@ func matchesValue(av, bv interface{}) bool {
 	case []interface{}:
 		bt := bv.([]interface{})
 		return matchesArray(at, bt)
+	default:
+		return false
 	}
 	return false
+}
+var nsc = 0
+func matchesValueInvocationCount(av, bv interface{}, i *int) bool {
+	*i += 1
+	if *i % 10000000 == 0 {
+		fmt.Printf("ALLLA %v\n", *i)
+	}
+	if reflect.TypeOf(av) != reflect.TypeOf(bv) {
+		return false
+	}
+
+	switch at := av.(type) {
+	case string:
+		bt := bv.(string)
+		if nsc > 1 && strings.Contains(at, "Specify whether the ConfigMap or it's key must be defined"){
+			fmt.Printf("(string) A %v\n", at)
+			fmt.Printf("(string) B %v\n", bt)
+		}
+		if bt == at {
+			if *i > 10000000 {
+				nsc += 1
+			}
+
+			return true
+		}
+	case float64:
+		bt := bv.(float64)
+		if bt == at {
+			return true
+		}
+	case bool:
+		bt := bv.(bool)
+		if bt == at {
+			fmt.Println("Returning at true bool")
+
+			return true
+		}
+	case nil:
+		// Both nil, fine.
+		fmt.Println("Returning at nil true")
+
+		return true
+	case map[string]interface{}:
+		bt := bv.(map[string]interface{})
+
+		for key := range at {
+			if nsc > 1 && strings.Contains(key, "Specify whether the ConfigMap or it's key must be defined"){
+				fmt.Printf("(key]) A %v\n", key)
+			}
+			if !matchesValueInvocationCount(at[key], bt[key], i) {
+				return false
+			}
+		}
+		for key := range bt {
+			if !matchesValueInvocationCount(at[key], bt[key], i) {
+				return false
+			}
+		}
+		return true
+	case []interface{}:
+		bt := bv.([]interface{})
+		return matchesArrayWithInvocationCounter(at, bt, i)
+	}
+	return false
+}
+
+// Returns true if the array matches (must be json types).
+// As is idiomatic for go, an empty array is not the same as a nil array.
+func matchesArrayWithInvocationCounter(a, b []interface{}, c *int) bool {
+	//fmt.Printf("array invo c %v\n", *c)
+	*c += 1
+	if len(a) != len(b) {
+		return false
+	}
+	if (a == nil && b != nil) || (a != nil && b == nil) {
+		return false
+	}
+	for i := range a {
+		if !matchesValueInvocationCount(a[i], b[i], c) {
+			return false
+		}
+	}
+	return true
 }
 
 // getDiff returns the (recursive) difference between a and b as a map[string]interface{}.
